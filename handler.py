@@ -1,18 +1,26 @@
-from Libraries.Account import Account
-from Libraries.CF import CF
+try:
+    import unzip_requirements
+except ImportError:
+    pass
+
+from libraries.accounts import Accounts
+from libraries.cf import CF
 
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
 def check_account(event, context):
-    account = Account(event.username, event.password, event.api_signature, event.account_type)
-    cf = CF(event.stack_name)
+    margin = int(os.environ['MARGIN'])
+
+    accounts = Accounts()
+    cf = CF(os.environ['STACK_NAME'], margin)
 
     # Get current balance of account
-    account_balance = account.get_balance()
+    account_balance = accounts.get_balance()
 
     # Calculate the hourly cost of the CF template
     cf_hourly_cost = cf.get_cost()
@@ -21,10 +29,10 @@ def check_account(event, context):
     cf_action = cf.make_decision(account_balance)
 
     if cf_action == 'stay':
-        message = "Given the account balance of %f.2 and an hourly cost of %f.2, it was decided to not change anything." % \
-                    (account_balance, cf_hourly_cost)
+        message = "Given the account balance of $%.2f and an hourly cost of $%.2f and a margin of %d hours, it was decided to not change anything." % \
+                    (account_balance, cf_hourly_cost, margin)
     else:
-        message = "Given the account balance of %f.2 and an hourly cost of %f.2, it was decided to %s." % \
-                    (account_balance, cf_hourly_cost, cf_action)
+        message = "Given the account balance of $%.2f and an hourly cost of $%.2f and a margin of %d hours, it was decided to %s the cloudformation template." % \
+                    (account_balance, cf_hourly_cost, margin, cf_action)
 
     logger.info(message)

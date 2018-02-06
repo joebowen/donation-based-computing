@@ -1,0 +1,23 @@
+{
+  "name": "donation-based-computing",
+  "version": "1.0.0",
+  "description": "Donation Based Computing",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/joebowen/donation-based-computing.git"
+  },
+  "author": "",
+  "license": "",
+  "bugs": {
+    "url": "https://github.com/joebowen/donation-based-computing/issues"
+  },
+  "homepage": "https://github.com/joebowen/donation-based-computing#readme",
+  "dependencies": {
+    "serverless-kms-secrets": "^1.0.2",
+    "serverless-python-requirements": "^3.3.0"
+  }
+}

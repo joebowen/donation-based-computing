@@ -11,7 +11,7 @@
 #
 # Happy Coding!
 
-service: donation-based-computing # NOTE: update this with your service name
+service: donation-based-computing
 
 # You can pin your service to only deploy with a specific Serverless version
 # Check out our docs for more details
@@ -20,13 +20,78 @@ service: donation-based-computing # NOTE: update this with your service name
 provider:
   name: aws
   runtime: python2.7
+  region: us-west-2
+  stage: dev
 
 # you can overwrite defaults here
 #  stage: dev
 #  region: us-east-1
 
 # you can add statements to the Lambda function's IAM Role here
-#  iamRoleStatements:
+  iamRoleStatements:
+     - Effect: Allow
+       Action:
+         - KMS:Decrypt
+       Resource: ${self:custom.kmsSecrets.keyArn}
+     - Effect: Allow
+       Action:
+         - ec2:DescribeAvailabilityZones
+         - ec2:DescribeAccountAttributes
+         - ec2:DescribeSubnets
+         - autoscaling:DescribeLaunchConfigurations
+         - autoscaling:DescribeAutoScalingGroups
+         - autoscaling:DescribeScalingActivities
+         - cloudformation:EstimateTemplateCost
+         - cloudformation:DescribeStacks
+       Resource: "*"
+     - Effect: Allow
+       Action:
+         - autoscaling:CreateLaunchConfiguration
+         - autoscaling:DeleteLaunchConfiguration
+       Resource:
+         Fn::Join:
+           - ""
+           - - "arn:aws:autoscaling:"
+             - Ref: 'AWS::Region'
+             - ":"
+             - Ref: 'AWS::AccountId'
+             - ":launchConfiguration:*:launchConfigurationName/"
+             - "gimps-"
+             - ${opt:stage, self:provider.stage}
+             - "*"
+     - Effect: Allow
+       Action:
+         - autoscaling:CreateAutoScalingGroup
+         - autoscaling:DeleteAutoScalingGroup
+         - autoscaling:UpdateAutoScalingGroup
+       Resource:
+         Fn::Join:
+           - ""
+           - - "arn:aws:autoscaling:"
+             - Ref: 'AWS::Region'
+             - ":"
+             - Ref: 'AWS::AccountId'
+             - ":autoScalingGroup:*:autoScalingGroupName/"
+             - "gimps-"
+             - ${opt:stage, self:provider.stage}
+             - "*"
+     - Effect: Allow
+       Action:
+         - cloudformation:CreateStack
+         - cloudformation:DeleteStack
+         - cloudformation:UpdateStack
+       Resource:
+         Fn::Join:
+           - ""
+           - - "arn:aws:cloudformation:"
+             - Ref: 'AWS::Region'
+             - ":"
+             - Ref: 'AWS::AccountId'
+             - ":stack/"
+             - "gimps-"
+             - ${opt:stage, self:provider.stage}
+             - "/*"
+
 #    - Effect: "Allow"
 #      Action:
 #        - "s3:ListBucket"
@@ -46,23 +111,47 @@ provider:
 #            - "/*"
 
 # you can define service wide environment variables here
-#  environment:
-#    variable1: value1
+  environment:
+    BLOCKIO_BITCOIN_API_KEY: ${self:custom.kmsSecrets.secrets.BLOCKIO_BITCOIN_API_KEY}
+    BLOCKIO_SECRET_PIN: ${self:custom.kmsSecrets.secrets.BLOCKIO_SECRET_PIN}
+    BLOCKIO_BITCOIN_ADDR: ${self:custom.kmsSecrets.secrets.BLOCKIO_BITCOIN_ADDR}
+    STACK_NAME: gimps-${opt:stage, self:provider.stage}
+    ACCOUNT_TYPE: blockio_bitcoin
+    MARGIN: 5
+#    ACCOUNT_TYPE: paypal
+#    PAYPAL_USERNAME: ${self:custom.kmsSecrets.secrets.PAYPAL_USERNAME}
+#    PAYPAL_PASSWORD: ${self:custom.kmsSecrets.secrets.PAYPAL_PASSWORD}
+#    PAYPAL_API_SIGNATURE: ${self:custom.kmsSecrets.secrets.PAYPAL_API_SIGNATURE}
+
+plugins:
+  - serverless-python-requirements
+  - serverless-kms-secrets
+
+custom:
+  pythonRequirements:
+    dockerizePip: non-linux
+    zip: true
+  serverless-kms-secrets:
+    secretsFile: kms-secrets.${opt:stage, self:provider.stage}.${opt:region, self:provider.region}.yml
+  kmsSecrets: ${file(kms-secrets.${opt:stage, self:provider.stage}.${opt:region, self:provider.region}.yml)}
+
 
 # you can add packaging information here
 package:
   include:
-    - Libraries/**
+    - libraries/**
+    - templates/**
+
 #    - include-me-dir/**
 #  exclude:
 #    - exclude-me.py
 #    - exclude-me-dir/**
 
 functions:
-  check_account:
+  check-account:
     handler: handler.check_account
     events:
-      - schedule: rate(1 hours)
+      - schedule: rate(1 hour)
 
 #    The following are a few example events you can configure
 #    NOTE: Please make sure to change your handler code to work with those events
@@ -72,7 +161,7 @@ functions:
 #          path: users/create
 #          method: get
 #      - s3: ${env:BUCKET}
-#      - schedule: rate(1 hours)
+#      - schedule: rate(2 hours)
 #      - sns: greeter-topic
 #      - stream: arn:aws:dynamodb:region:XXXXXX:table/foo/stream/1970-01-01T00:00:00.000
 #      - alexaSkill

@@ -1,2 +1,7 @@
+setuptools
+dryscrape
+bs4
 paypal
+block-io
 boto3
+botocore
