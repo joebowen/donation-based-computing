@@ -4,11 +4,12 @@ except ImportError:
     pass
 
 import boto3
-import dryscrape
+import os
 import re
 import logging
 
-from bs4 import BeautifulSoup
+from selenium import webdriver
+from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 from botocore.exceptions import ClientError
 
 logger = logging.getLogger(__name__)
@@ -35,20 +36,29 @@ class CF:
             :returns float cost_per_hour
         """
 
-        # TODO: Fix this and make it actually estimate the hourly costs.
-        #  cost_url = cf_client.estimate_template_cost(TemplateBody=self.cf_template)
-        #
-        # session = dryscrape.Session()
-        # session.visit(cost_url['Url'])
-        # response = session.body()
-        # soup = BeautifulSoup(response)
-        # monthly_bill = soup.find(text=re.compile("Estimate of your Monthly Bill \(\$ (.*)\)"))
-        #
-        # monthly_cost = float(re.match("Estimate of your Monthly Bill \(\$ (.*)\)", monthly_bill).groups()[0])
-        #
-        # self.cost_per_hour = monthly_cost / 730
+        cost_url = cf_client.estimate_template_cost(TemplateBody=self.cf_template)
 
-        self.cost_per_hour = .02
+        user_agent = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/47.0.2526.111 Safari/537.36")
+
+        dcap = dict(DesiredCapabilities.PHANTOMJS)
+        dcap["phantomjs.page.settings.userAgent"] = user_agent
+        dcap["phantomjs.page.settings.javascriptEnabled"] = True
+
+        browser = webdriver.PhantomJS(service_log_path=os.path.devnull,
+                                      executable_path="/var/task/phantomjs",
+                                      service_args=['--ignore-ssl-errors=true'],
+                                      desired_capabilities=dcap)
+
+        browser.get(cost_url['Url'])
+
+        # Need to make sure the next phantomjs commands work
+        logger.info(browser.page_source)
+
+        monthly_bill = browser.find_element_by_xpath("//*[contains(text(), 'Estimate of your Monthly Bill ($')]").text
+
+        monthly_cost = float(re.match("Estimate of your Monthly Bill \(\$ (.*)\)", monthly_bill).groups()[0])
+
+        self.cost_per_hour = monthly_cost / 730
 
         return self.cost_per_hour
 

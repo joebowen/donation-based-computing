@@ -23,3 +23,5 @@ var/
 .idea/
 
 .requirements.zip
+
+kms-secrets.*.yml

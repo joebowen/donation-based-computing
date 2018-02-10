@@ -5,12 +5,15 @@ except ImportError:
 
 from libraries.accounts import Accounts
 from libraries.cf import CF
+from libraries.website import Website
 
 import logging
 import os
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+
+website = Website()
 
 
 def check_account(event, context):
@@ -25,6 +28,9 @@ def check_account(event, context):
     # Calculate the hourly cost of the CF template
     cf_hourly_cost = cf.get_cost()
 
+    # Get current state of CF template
+    cf_running = cf.running()
+
     # Make CF start/stop/modify decision
     cf_action = cf.make_decision(account_balance)
 
@@ -36,3 +42,7 @@ def check_account(event, context):
                     (account_balance, cf_hourly_cost, margin, cf_action)
 
     logger.info(message)
+
+    # Update website in S3
+    website.update(account_balance, cf_hourly_cost, margin, cf_action, cf_running)
+

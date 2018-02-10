@@ -22,10 +22,7 @@ provider:
   runtime: python2.7
   region: us-west-2
   stage: dev
-
-# you can overwrite defaults here
-#  stage: dev
-#  region: us-east-1
+  timeout: 300
 
 # you can add statements to the Lambda function's IAM Role here
   iamRoleStatements:
@@ -91,41 +88,48 @@ provider:
              - "gimps-"
              - ${opt:stage, self:provider.stage}
              - "/*"
-
-#    - Effect: "Allow"
-#      Action:
-#        - "s3:ListBucket"
-#       Resource:
-#        Fn::Join:
-#          - ""
-#          - - "arn:aws:s3:::"
-#            - "Ref" : "donation-based-computing"
-#    - Effect: "Allow"
-#      Action:
-#        - "s3:PutObject"
-#      Resource:
-#        Fn::Join:
-#          - ""
-#          - - "arn:aws:s3:::"
-#            - "Ref" : "donation-based-computing"
-#            - "/*"
+     - Effect: Allow
+       Action:
+         - "s3:ListBucket"
+       Resource:
+         Fn::Join:
+           - ""
+           - - "arn:aws:s3:::"
+             - ${opt:stage, self:custom.client.bucketName}
+     - Effect: Allow
+       Action:
+         - "s3:PutObject"
+       Resource:
+         Fn::Join:
+           - ""
+           - - "arn:aws:s3:::"
+             - ${opt:stage, self:custom.client.bucketName}
+             - "/*"
 
 # you can define service wide environment variables here
   environment:
+    STACK_NAME: gimps-${opt:stage, self:provider.stage}
+    PROJECT_NAME: The Great Internet Mersenne Prime Search
+    PROJECT_URL: https://www.mersenne.org/
+    MARGIN: 5 # In hours
+    WEBSITE_BUCKET: ${opt:stage, self:custom.client.bucketName}
+
+    # Bitcoin
+    ACCOUNT_TYPE: blockio_bitcoin
     BLOCKIO_BITCOIN_API_KEY: ${self:custom.kmsSecrets.secrets.BLOCKIO_BITCOIN_API_KEY}
     BLOCKIO_SECRET_PIN: ${self:custom.kmsSecrets.secrets.BLOCKIO_SECRET_PIN}
-    BLOCKIO_BITCOIN_ADDR: ${self:custom.kmsSecrets.secrets.BLOCKIO_BITCOIN_ADDR}
-    STACK_NAME: gimps-${opt:stage, self:provider.stage}
-    ACCOUNT_TYPE: blockio_bitcoin
-    MARGIN: 5
-#    ACCOUNT_TYPE: paypal
-#    PAYPAL_USERNAME: ${self:custom.kmsSecrets.secrets.PAYPAL_USERNAME}
-#    PAYPAL_PASSWORD: ${self:custom.kmsSecrets.secrets.PAYPAL_PASSWORD}
-#    PAYPAL_API_SIGNATURE: ${self:custom.kmsSecrets.secrets.PAYPAL_API_SIGNATURE}
+    BLOCKIO_BITCOIN_ADDR: 16ppYndY97cFuQLY4MDjsjNHkXdXvyUXGc
+
+    # Paypal
+    # ACCOUNT_TYPE: paypal
+    # PAYPAL_USERNAME: ${self:custom.kmsSecrets.secrets.PAYPAL_USERNAME}
+    # PAYPAL_PASSWORD: ${self:custom.kmsSecrets.secrets.PAYPAL_PASSWORD}
+    # PAYPAL_API_SIGNATURE: ${self:custom.kmsSecrets.secrets.PAYPAL_API_SIGNATURE}
 
 plugins:
   - serverless-python-requirements
   - serverless-kms-secrets
+  - serverless-finch
 
 custom:
   pythonRequirements:
@@ -134,18 +138,19 @@ custom:
   serverless-kms-secrets:
     secretsFile: kms-secrets.${opt:stage, self:provider.stage}.${opt:region, self:provider.region}.yml
   kmsSecrets: ${file(kms-secrets.${opt:stage, self:provider.stage}.${opt:region, self:provider.region}.yml)}
-
+  client:
+    bucketName: donation-based-computing
+    distributionFolder: client/dist
 
 # you can add packaging information here
 package:
   include:
     - libraries/**
     - templates/**
-
-#    - include-me-dir/**
-#  exclude:
-#    - exclude-me.py
-#    - exclude-me-dir/**
+  exclude:
+    - .idea/**
+    - client/**
+    - node_modules/**
 
 functions:
   check-account:
@@ -189,11 +194,10 @@ functions:
 # you can add CloudFormation resource templates here
 #resources:
 #  Resources:
-#    NewResource:
+#    S3Bucket:
 #      Type: AWS::S3::Bucket
 #      Properties:
-#        BucketName: donation-based-computing
-
+#        BucketName: ${opt:stage, self:custom.client.bucketName}
 
 #  Outputs:
 #     NewOutput:

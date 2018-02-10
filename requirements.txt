@@ -1,7 +1,7 @@
 setuptools
-dryscrape
-bs4
+selenium
 paypal
 block-io
 boto3
 botocore
+jinja2
